@@ -1,0 +1,65 @@
+name: Unzip Project (folder-aware)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "*.zip"
+
+permissions:
+  contents: write
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install unzip + rsync
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y unzip rsync
+
+      - name: Unzip project into repo root
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP="$(ls -1 *.zip | head -n 1 || true)"
+          if [ -z "$ZIP" ]; then
+            echo "No zip found at repo root."
+            exit 1
+          fi
+
+          rm -rf __tmp
+          mkdir -p __tmp
+          unzip -q "$ZIP" -d __tmp
+
+          # Detect a single TOP-LEVEL entry (folder wrapper) correctly:
+          ENTRY_COUNT="$(ls -A __tmp | wc -l | tr -d ' ')"
+          if [ "$ENTRY_COUNT" = "1" ]; then
+            ONLY="$(ls -A __tmp)"
+            if [ -d "__tmp/$ONLY" ]; then
+              SRC="__tmp/$ONLY"
+            else
+              SRC="__tmp"
+            fi
+          else
+            SRC="__tmp"
+          fi
+
+          # Merge safely, but avoid overwriting this workflow if zip contained one
+          rsync -a \
+            --exclude ".git" \
+            --exclude ".github/workflows/unzip_project.yml" \
+            "$SRC"/ .
+
+          rm -rf __tmp
+          rm -f "$ZIP"
+
+      - name: Commit
+        run: |
+          git config user.name "unzip-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .
+          git commit -m "Unzipped project" || echo "Nothing to commit"
+          git push
