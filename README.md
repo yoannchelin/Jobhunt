@@ -33,7 +33,4 @@ Default demo login:
 - demo@jobhunt.dev / Demo123!
 
 ## Deploy notes
-- Web: Vercel (root `web`)
-- API: Render/Railway/Fly (root `server`)
-- DB: MongoDB Atlas
-See `MOBILE_DEPLOY.md`.
+in process
